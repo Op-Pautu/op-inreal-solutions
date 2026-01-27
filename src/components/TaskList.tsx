@@ -23,11 +23,16 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     setLoading(true)
     setError(null)
 
-    // TODO: Implement create task logic
-
     try {
       console.log("TODO: Implement create task")
-      // Your code here
+      const newTask = await createTask({
+        title: title.trim(),
+        description: description.trim() || null,
+      })
+
+      setTasks([newTask, ...tasks])
+      setTitle("")
+      setDescription("")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task")
     } finally {

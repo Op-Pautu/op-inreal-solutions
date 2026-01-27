@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server"
 import type { CreateTaskInput, Task, UpdateTaskInput } from "@/types/task"
+import { revalidatePath } from "next/cache"
 
 export async function getTasks() {
   const supabase = await createClient()
@@ -24,8 +25,37 @@ export async function getTasks() {
 }
 
 export async function createTask(input: CreateTaskInput) {
-  console.log("TODO: Implement createTask", input)
-  throw new Error("Not implemented")
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Unauthorized")
+
+  const { title, description } = input
+  if (!title.trim()) {
+    throw new Error("Title is required")
+  }
+
+  if (!description) {
+    throw new Error("Description is required")
+  }
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .insert({
+      user_id: user.id,
+      title,
+      description,
+      completed: false,
+    })
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+  revalidatePath("/dashboard")
+  return data as Task
 }
 
 export async function updateTask(id: string, input: UpdateTaskInput) {
