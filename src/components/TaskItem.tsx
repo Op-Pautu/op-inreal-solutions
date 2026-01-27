@@ -1,0 +1,109 @@
+"use client"
+
+import { useState } from "react"
+import type { Task } from "@/types/task"
+
+interface TaskItemProps {
+  task: Task
+  onDelete: (id: string) => Promise<void>
+  onToggleComplete: (id: string, completed: boolean) => Promise<void>
+}
+
+export default function TaskItem({
+  task,
+  onDelete,
+  onToggleComplete,
+}: TaskItemProps) {
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (!confirm("Are you sure you want to delete this task?")) return
+    setDeleting(true)
+    await onDelete(task.id)
+  }
+
+  const handleToggle = async () => {
+    await onToggleComplete(task.id, !task.completed)
+  }
+
+  return (
+    <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-5 hover:bg-white/10 transition-all">
+      <div className="flex items-start gap-4">
+        <button
+          onClick={handleToggle}
+          className="mt-1 shrink-0 w-5 h-5 rounded border-2 border-white/30 hover:border-blue-500 transition-all flex items-center justify-center"
+          style={{
+            backgroundColor: task.completed
+              ? "rgb(59, 130, 246)"
+              : "transparent",
+            borderColor: task.completed ? "rgb(59, 130, 246)" : undefined,
+          }}
+        >
+          {task.completed && (
+            <svg
+              className="w-3 h-3 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          )}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <h3
+            className={`text-lg font-medium mb-1 ${
+              task.completed ? "text-slate-500 line-through" : "text-white"
+            }`}
+          >
+            {task.title}
+          </h3>
+          {task.description && (
+            <p
+              className={`text-sm mb-2 ${
+                task.completed ? "text-slate-600" : "text-slate-400"
+              }`}
+            >
+              {task.description}
+            </p>
+          )}
+          <p className="text-xs text-slate-500">
+            {new Date(task.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </p>
+        </div>
+
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="shrink-0 p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all disabled:opacity-50"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
