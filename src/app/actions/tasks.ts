@@ -59,8 +59,29 @@ export async function createTask(input: CreateTaskInput) {
 }
 
 export async function updateTask(id: string, input: UpdateTaskInput) {
-  console.log("TODO: Implement updateTask", id, input)
-  throw new Error("Not implemented")
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Unauthorized")
+
+  const { data, error } = await supabase
+    .from("tasks")
+    .update({
+      ...input,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .select()
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/dashboard")
+  return data
 }
 
 export async function deleteTask(id: string) {

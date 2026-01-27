@@ -43,7 +43,7 @@ export default function TaskList({ initialTasks }: TaskListProps) {
   const handleDeleteTask = async (id: string) => {
     try {
       await deleteTask(id)
-      setTasks(tasks.filter((task) => task.id !== id))
+      setTasks((prev) => prev.filter((task) => task.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task")
     }
@@ -51,8 +51,10 @@ export default function TaskList({ initialTasks }: TaskListProps) {
 
   const handleToggleComplete = async (id: string, completed: boolean) => {
     try {
-      console.log("TODO: Implement toggle complete", id, completed)
-      // Your code here
+      await updateTask(id, { completed })
+      setTasks((prev) =>
+        prev.map((task) => (task.id === id ? { ...task, completed } : task)),
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update task")
     }
