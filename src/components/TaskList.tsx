@@ -41,10 +41,9 @@ export default function TaskList({ initialTasks }: TaskListProps) {
   }
 
   const handleDeleteTask = async (id: string) => {
-    // TODO: Implement delete task logic
-
     try {
-      console.log("TODO: Implement delete task", id)
+      await deleteTask(id)
+      setTasks(tasks.filter((task) => task.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task")
     }

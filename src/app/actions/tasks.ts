@@ -64,6 +64,21 @@ export async function updateTask(id: string, input: UpdateTaskInput) {
 }
 
 export async function deleteTask(id: string) {
-  console.log("TODO: Implement deleteTask", id)
-  throw new Error("Not implemented")
+  const supabase = await createClient()
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) throw new Error("Unauthorized")
+
+  const { error } = await supabase
+    .from("tasks")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", user.id)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath("/dashboard")
 }
