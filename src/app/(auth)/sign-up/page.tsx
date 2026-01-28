@@ -19,7 +19,7 @@ export default function SignUp() {
     setError(null)
 
     if (password !== confirmPassword) {
-      setError("Password doesn't match")
+      setError("Passwords don't match")
       return
     }
 
@@ -30,16 +30,27 @@ export default function SignUp() {
 
     setLoading(true)
 
-    const { error } = await supabase.auth.signUp({ email, password })
+    try {
+      const { error } = await supabase.auth.signUp({ email, password })
 
-    if (error) {
-      setError(error.message)
+      if (error) {
+        if (error.message.includes("already registered")) {
+          setError("This email is already registered. Try signing in instead.")
+        } else if (error.message.includes("invalid email")) {
+          setError("Please enter a valid email address.")
+        } else {
+          setError(error.message)
+        }
+        return
+      }
+
+      router.push("/dashboard")
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+      console.error("Sign up error:", err)
+    } finally {
       setLoading(false)
-      return
     }
-
-    router.push("/dashboard")
-    setLoading(false)
   }
 
   return (

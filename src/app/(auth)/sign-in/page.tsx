@@ -18,19 +18,30 @@ export default function SignIn() {
     setError(null)
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      setError(error.message)
+      if (error) {
+        if (error.message.includes("Invalid login credentials")) {
+          setError("Invalid email or password. Please try again.")
+        } else if (error.message.includes("Email not confirmed")) {
+          setError("Please verify your email address before signing in.")
+        } else {
+          setError(error.message)
+        }
+        return
+      }
+
+      router.push("/dashboard")
+    } catch (err) {
+      setError("An unexpected error occurred. Please try again.")
+      console.error("Sign in error:", err)
+    } finally {
       setLoading(false)
-      return
     }
-
-    setLoading(false)
-    router.push("/dashboard")
   }
 
   return (

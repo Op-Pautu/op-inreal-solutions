@@ -12,19 +12,21 @@ export default function DashboardHeader({ userEmail }: DashboardHeaderProps) {
   const router = useRouter()
   const supabase = createClient()
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+
   const handleSignOut = async () => {
     setLoading(true)
 
-    const { error } = await supabase.auth.signOut()
-    if (error) {
-      setError(error.message)
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      router.push("/sign-in")
+    } catch (error) {
+      console.error("Sign out error:", error)
+      // Still redirect even if sign out fails
+      router.push("/sign-in")
+    } finally {
+      setLoading(false)
     }
-
-    router.push("/sign-in")
-
-    console.log("TODO: Implement sign out")
-    setLoading(false)
   }
 
   return (
@@ -52,12 +54,6 @@ export default function DashboardHeader({ userEmail }: DashboardHeaderProps) {
               <p className="text-slate-400 text-sm">{userEmail}</p>
             </div>
           </div>
-
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-3">
-              <p className="text-red-400 text-sm">{error}</p>
-            </div>
-          )}
 
           <button
             onClick={handleSignOut}
