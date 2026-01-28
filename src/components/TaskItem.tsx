@@ -18,7 +18,6 @@ export default function TaskItem({
   const [toggling, setToggling] = useState(false)
 
   const handleDelete = async () => {
-    if (!confirm("Are you sure you want to delete this task?")) return
     setDeleting(true)
     try {
       await onDelete(task.id)

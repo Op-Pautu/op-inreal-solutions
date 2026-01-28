@@ -1,6 +1,5 @@
 "use client"
-
-import { useState, useOptimistic } from "react"
+import { useState, useOptimistic, startTransition } from "react"
 import { createTask, deleteTask, updateTask } from "@/app/actions/tasks"
 import type { Task } from "@/types/task"
 import TaskItem from "./TaskItem"
@@ -11,28 +10,25 @@ interface TaskListProps {
 
 export default function TaskList({ initialTasks }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
-
   const [optimisticTasks, addOptimisticTask] = useOptimistic(
     tasks,
     (
       state,
-      newTask:
+      newValue:
         | Task
         | { id: string; action: "delete" | "update"; updates?: Partial<Task> },
     ) => {
-      // Handle different optimistic actions
-      if ("action" in newTask) {
-        if (newTask.action === "delete") {
-          return state.filter((task) => task.id !== newTask.id)
+      if ("action" in newValue) {
+        if (newValue.action === "delete") {
+          return state.filter((task) => task.id !== newValue.id)
         }
-        if (newTask.action === "update") {
+        if (newValue.action === "update") {
           return state.map((task) =>
-            task.id === newTask.id ? { ...task, ...newTask.updates } : task,
+            task.id === newValue.id ? { ...task, ...newValue.updates } : task,
           )
         }
       }
-      // Add new task
-      return [newTask as Task, ...state]
+      return [newValue as Task, ...state]
     },
   )
 
@@ -48,7 +44,6 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     setLoading(true)
     setError(null)
 
-    // Optimistic task (temporary ID)
     const optimisticTask: Task = {
       id: `temp-${Date.now()}`,
       title: title.trim(),
@@ -59,46 +54,83 @@ export default function TaskList({ initialTasks }: TaskListProps) {
       updated_at: new Date().toISOString(),
     }
 
-    try {
-      addOptimisticTask(optimisticTask) // Update UI immediately!
-      setTitle("")
-      setDescription("")
+    startTransition(() => {
+      addOptimisticTask(optimisticTask)
+    })
 
+    setTitle("")
+    setDescription("")
+
+    try {
       const newTask = await createTask({
         title: title.trim(),
         description: description.trim() || null,
       })
 
-      setTasks([newTask, ...tasks]) // Replace with real task
+      startTransition(() => {
+        setTasks((currentTasks) => [newTask, ...currentTasks])
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task")
-      setTasks(tasks) // Rollback on error
+
+      // Rollback: remove the optimistic temp task
+      startTransition(() => {
+        addOptimisticTask({ id: optimisticTask.id, action: "delete" })
+      })
     } finally {
       setLoading(false)
     }
   }
 
   const handleDeleteTask = async (id: string) => {
+    // Find the task to potentially revert
+    const taskToDelete = optimisticTasks.find((t) => t.id === id)
+    if (!taskToDelete) return
+
+    startTransition(() => {
+      addOptimisticTask({ id, action: "delete" })
+    })
+
     try {
-      addOptimisticTask({ id, action: "delete" }) // Update UI immediately!
       await deleteTask(id)
-      setTasks(tasks.filter((task) => task.id !== id))
+      setTasks((prev) => prev.filter((task) => task.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task")
-      setTasks(tasks) // Rollback on error
+
+      // Rollback: add the task back optimistically
+      startTransition(() => {
+        addOptimisticTask(taskToDelete)
+      })
     }
   }
 
-  const handleToggleComplete = async (id: string, completed: boolean) => {
+  const handleToggleComplete = async (id: string, newCompleted: boolean) => {
+    startTransition(() => {
+      addOptimisticTask({
+        id,
+        action: "update",
+        updates: { completed: newCompleted },
+      })
+    })
+
     try {
-      addOptimisticTask({ id, action: "update", updates: { completed } }) // Update UI immediately!
-      await updateTask(id, { completed })
+      await updateTask(id, { completed: newCompleted })
       setTasks((prev) =>
-        prev.map((task) => (task.id === id ? { ...task, completed } : task)),
+        prev.map((task) =>
+          task.id === id ? { ...task, completed: newCompleted } : task,
+        ),
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update task")
-      setTasks(tasks) // Rollback on error
+
+      // Rollback: revert to previous completed state
+      startTransition(() => {
+        addOptimisticTask({
+          id,
+          action: "update",
+          updates: { completed: !newCompleted },
+        })
+      })
     }
   }
 
@@ -137,7 +169,7 @@ export default function TaskList({ initialTasks }: TaskListProps) {
           <button
             type="submit"
             disabled={loading || !title.trim()}
-            className="w-full py-3 px-4 bg-linear-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Creating..." : "Add Task"}
           </button>
