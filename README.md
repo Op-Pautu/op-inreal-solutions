@@ -1,5 +1,10 @@
 # Task Management Application
 
+**Author**: Lalawmpuia Pautu
+**Email**: pautuop@gmail.com
+**Version**: 1.0.0
+**Last Updated**: January 28, 2026
+
 A full-stack task management web application built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
 ## Features
