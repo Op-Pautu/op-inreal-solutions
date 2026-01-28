@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useOptimistic } from "react"
 import { createTask, deleteTask, updateTask } from "@/app/actions/tasks"
 import type { Task } from "@/types/task"
 import TaskItem from "./TaskItem"
@@ -11,6 +11,31 @@ interface TaskListProps {
 
 export default function TaskList({ initialTasks }: TaskListProps) {
   const [tasks, setTasks] = useState<Task[]>(initialTasks)
+
+  const [optimisticTasks, addOptimisticTask] = useOptimistic(
+    tasks,
+    (
+      state,
+      newTask:
+        | Task
+        | { id: string; action: "delete" | "update"; updates?: Partial<Task> },
+    ) => {
+      // Handle different optimistic actions
+      if ("action" in newTask) {
+        if (newTask.action === "delete") {
+          return state.filter((task) => task.id !== newTask.id)
+        }
+        if (newTask.action === "update") {
+          return state.map((task) =>
+            task.id === newTask.id ? { ...task, ...newTask.updates } : task,
+          )
+        }
+      }
+      // Add new task
+      return [newTask as Task, ...state]
+    },
+  )
+
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
@@ -23,18 +48,31 @@ export default function TaskList({ initialTasks }: TaskListProps) {
     setLoading(true)
     setError(null)
 
+    // Optimistic task (temporary ID)
+    const optimisticTask: Task = {
+      id: `temp-${Date.now()}`,
+      title: title.trim(),
+      description: description.trim() || null,
+      completed: false,
+      user_id: "temp",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
     try {
-      console.log("TODO: Implement create task")
+      addOptimisticTask(optimisticTask) // Update UI immediately!
+      setTitle("")
+      setDescription("")
+
       const newTask = await createTask({
         title: title.trim(),
         description: description.trim() || null,
       })
 
-      setTasks([newTask, ...tasks])
-      setTitle("")
-      setDescription("")
+      setTasks([newTask, ...tasks]) // Replace with real task
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create task")
+      setTasks(tasks) // Rollback on error
     } finally {
       setLoading(false)
     }
@@ -42,21 +80,25 @@ export default function TaskList({ initialTasks }: TaskListProps) {
 
   const handleDeleteTask = async (id: string) => {
     try {
+      addOptimisticTask({ id, action: "delete" }) // Update UI immediately!
       await deleteTask(id)
-      setTasks((prev) => prev.filter((task) => task.id !== id))
+      setTasks(tasks.filter((task) => task.id !== id))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete task")
+      setTasks(tasks) // Rollback on error
     }
   }
 
   const handleToggleComplete = async (id: string, completed: boolean) => {
     try {
+      addOptimisticTask({ id, action: "update", updates: { completed } }) // Update UI immediately!
       await updateTask(id, { completed })
       setTasks((prev) =>
         prev.map((task) => (task.id === id ? { ...task, completed } : task)),
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update task")
+      setTasks(tasks) // Rollback on error
     }
   }
 
@@ -104,7 +146,7 @@ export default function TaskList({ initialTasks }: TaskListProps) {
 
       {/* Task List */}
       <div className="space-y-3">
-        {tasks.length === 0 ? (
+        {optimisticTasks.length === 0 ? (
           <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-12 text-center">
             <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg
@@ -129,7 +171,7 @@ export default function TaskList({ initialTasks }: TaskListProps) {
             </p>
           </div>
         ) : (
-          tasks.map((task) => (
+          optimisticTasks.map((task) => (
             <TaskItem
               key={task.id}
               task={task}
